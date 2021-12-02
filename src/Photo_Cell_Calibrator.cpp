@@ -9,6 +9,35 @@ int LeftMin = 0;
 int RightMax = 0;
 int RightMin = 0; // We have a 10-bit analog resolution
 
+uint8_t RightPhotoResistor;
+uint8_t LeftPhotoResistor;
+uint8_t RightLEDPin;
+uint8_t LeftLEDPin;
+
+void setupPhotoresistors(uint8_t leftLED, uint8_t rightLED, uint8_t leftPhoto, uint8_t rightPhoto, int analogResolution)
+{
+  LeftLEDPin = leftLED;
+  RightLEDPin = rightLED;
+  LeftPhotoResistor = leftPhoto;
+  RightPhotoResistor = rightPhoto;
+
+  pinMode(LeftPhotoResistor, INPUT);
+  pinMode(RightPhotoResistor, INPUT);
+  pinMode(LeftLEDPin, OUTPUT);
+  pinMode(RightLEDPin, OUTPUT);
+
+  // Turn on both LEDs to signify calibration
+  digitalWrite(LeftLEDPin, HIGH);
+  digitalWrite(RightLEDPin, HIGH);
+
+  fullCalibration(LeftPhotoResistor, RightPhotoResistor, analogResolution);
+  
+  // Calibration Done.
+  digitalWrite(LeftLEDPin, LOW);
+  digitalWrite(RightLEDPin, LOW);
+}
+
+
 void CalibratePhotoresistors(uint8_t sensePin, int *senseMax, int *senseMin) {
   /*
    * This function will perform one iteration of a photo cell calibration.
@@ -182,4 +211,6 @@ void trackLine(uint8_t LeftPhotoresistor, uint8_t RightPhotoresistor, bool rever
       digitalWrite(LeftLEDPin, LOW);
       break;
   }
+  Serial.println((*photoValues).Left_Photo);
+  Serial.println((*photoValues).Right_Photo);
 }

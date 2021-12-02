@@ -35,10 +35,10 @@ photoVals photoValues;
 
 void setup() {
   Serial.begin(115200);
+  //teleBotSetup();
   motorSetup(PWMA, PWMB, AIN1, AIN2, BIN1, BIN2, STBY);
   ultraSetup(ULTRA_DIRECTION, ULTRA_DETECTION, ULTRA_SLEEP);
   setupPhotoresistors(LEFT_LED, RIGHT_LED, LEFT_PHOTO, RIGHT_PHOTO, analogResolution);
-  teleBotSetup();
 
 }
 
@@ -63,15 +63,15 @@ void loop(){
   {
     fullStop();
     objectDetected = digitalRead(ULTRA_DETECTION);
-    if (!messageSent) {
+    /*if (!messageSent) {
       alertUser("Object in the way! Please Remove it!");
       messageSent = true;
-    }
+    }*/
   }
-  if (messageSent) {
+  /*if (messageSent) {
     messageSent = false;
     alertUser("All Clear!");
-  }
+  }*/
   
   if(atPickup)
   {
