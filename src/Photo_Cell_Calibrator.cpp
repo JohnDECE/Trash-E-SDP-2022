@@ -9,37 +9,6 @@ int LeftMin = 0;
 int RightMax = 0;
 int RightMin = 0; // We have a 10-bit analog resolution
 
-uint8_t RightPhotoResistor;
-uint8_t LeftPhotoResistor;
-uint8_t RightLEDPin;
-uint8_t LeftLEDPin;
-
-
-
-
-void setupPhotoresistors(uint8_t leftLED, uint8_t rightLED, uint8_t leftPhoto, uint8_t rightPhoto, int analogResolution)
-{
-  LeftLEDPin = leftLED;
-  RightLEDPin = rightLED;
-  LeftPhotoResistor = leftPhoto;
-  RightPhotoResistor = rightPhoto;
-
-  pinMode(LeftPhotoResistor, INPUT);
-  pinMode(RightPhotoResistor, INPUT);
-  pinMode(LeftLEDPin, OUTPUT);
-  pinMode(RightLEDPin, OUTPUT);
-
-  // Turn on both LEDs to signify calibration
-  digitalWrite(LeftLEDPin, HIGH);
-  digitalWrite(RightLEDPin, HIGH);
-
-  fullCalibration(LeftPhotoResistor, RightPhotoResistor, analogResolution);
-  
-  // Calibration Done.
-  digitalWrite(LeftLEDPin, LOW);
-  digitalWrite(RightLEDPin, LOW);
-}
-
 void CalibratePhotoresistors(uint8_t sensePin, int *senseMax, int *senseMin) {
   /*
    * This function will perform one iteration of a photo cell calibration.
@@ -75,25 +44,40 @@ void fullCalibration(uint8_t leftPhotoresistor, uint8_t rightPhotoresistor, int 
   calibrated = true;
 }
 
+int readRawPhotoVal(uint8_t photoCellPin) {
+  /*
+   * Singular version of readRawPhotoCells, does the same thing except only for one photocell.
+   */
+  return analogRead(photoCellPin);
+}
+
 void readRawPhotoCells(uint8_t LeftPhotoresistor, uint8_t RightPhotoresistor, photoVals *photoValues) {
+  /*
+   * Fair self-explanatory: Reads raw data from both of our photo cells and stores into our photoVals struct which we have a pointer to.
+   */
   if (calibrated) {
     if (photoValues == NULL) {return;}
-    (*photoValues).Left_Photo = analogRead(LeftPhotoresistor);
-    (*photoValues).Right_Photo = analogRead(RightPhotoresistor);
+    (*photoValues).Left_Photo = readRawPhotoVal(LeftPhotoresistor);
+    (*photoValues).Right_Photo = readRawPhotoVal(RightPhotoresistor);
   }
 }
 
 void processPhotoCells(photoVals *photoValues) {
   /*
-   * Should run after sensors are calibrated
-   * If not calibrated then do nothing.
+   * This function will take in a photoVals struct defined in Photo_Cell_Calibrator.h
    * 
-   * This function will read our photocells at pins LeftPhotoresistor and RightPhotoresistor. 
-   * Then using our calibrated values, we will force the read values in between our calibrated values and then convert our squeezed values into a boolean like value.
-   * Using that value, we will then determine if we are off or on our line. The line color is a light or dark color which is decided by the reverseColor boolean.
-   * A true value indicates a light colored line and vice versa.
+   * It will then squeeze our newly read photoresistor values into our calibrated bounds and then further squeeze/map them into an integer value between 0 and 2.
    * 
-   * reverseColor: False means that we are doing a dark colored line and a bright colored outside, true is the opposite
+   * The reason why this works is that we are working with high contrast colors, thus if we detect light this leads to a higher sensor value and since we are working with
+   * high contrast, the difference between light and dark is significant. Thus our high sensor value will map into a non-zero integer which will thus act as our LOGIC HIGH boolean.
+   * And vice versa, and dark color will then lead to a low sensor value which should map to zero, thus it will act as our LOGIC LOW boolean.
+   * 
+   * The reason why I choose 0 to 2 rather than 0 to 1, is because I wanted to reduce the mapping range for 0. Thus we are less susceptible to slightly dark colors triggering our low logic.
+   * Why we might want this, is because our line might have dust or something on it and it might trigger the sensor to be mapped to 0. 
+   * 
+   * Otherwise, it will do nothing if there are no values to work with
+   * 
+   * 
    */
   if (photoValues == NULL) {return;}
   (*photoValues).Left_Photo = constrain((*photoValues).Left_Photo, LeftMin, LeftMax);
@@ -104,63 +88,53 @@ void processPhotoCells(photoVals *photoValues) {
 }
 
 int handlePhotoCells(photoVals *photoValues, bool reverseColor) {
-    if (photoValues == NULL) {return -1;}
-    int Left_Photo = (*photoValues).Left_Photo;
-    int Right_Photo = (*photoValues).Right_Photo;
-
-   /* if ((Left_Photo && !Right_Photo) || (!Left_Photo && Right_Photo)) { // If we detect dark, it must exclusively be detected on one side (This is the XOR of Left_Photo and Right_Photo)
-        if ((!Left_Photo && reverseColor) || (Left_Photo && !reverseColor)) { // Left Side is dark (like asphalt)
-          // LEFT SIDE TRIGGERED (MEANING ROBOT WENT OFF THE LINE ON THE LEFT SIDE)
-          // CALL FUNCTION HERE, LEAVE THE RETURN
-          
-          return 1;
-        }
-        else { // Right Side is dark (like asphalt)
-          // RIGHT SIDE TRIGGERED (MEANING ROBOT WENT OFF THE LINE ON THE RIGHT SIDE)
-          // CALL YOUR FUNCTION HERE, LEAVE THE RETURN
-          return 2;
-        }
+  /*
+   * This will determine which sensor triggered (Assumes 2 photo cells each representing either left or right)
+   * Returns an integer:
+   * 1 for left side triggered
+   * 2 for right side triggered
+   * 0 for nothing triggered (normal)
+   * -1 for an unexpected case/error
+   */
+  if (photoValues == NULL) {return -1;}
+  int Left_Photo = (*photoValues).Left_Photo;
+  int Right_Photo = (*photoValues).Right_Photo;
+  if (reverseColor) { // Light is the line, dark is everything else
+    if ((Left_Photo && !Right_Photo) || (!Left_Photo && Right_Photo)) { // If we detect dark, it must exclusively be detected on one side (This is the XOR of Left_Photo and Right_Photo)
+      if (!Left_Photo) { // Left Side is dark (like asphalt)
+        return 1;
+      }
+      else { // Right Side is dark (like asphalt)
+        return 2;
+      }
     }
-    else if ((Left_Photo && Right_Photo) && reverseColor || !(Left_Photo && Right_Photo) && !reverseColor) { // Since we reversed the colors, we know we are on the line if we detect white on both sides, thus turn off the LEDs
-      // THIS IS THE CASE THERE WE ARE ON THE LINE AND HAVE NOT VEERED OFF.
-      // CALL FUNCTION HERE
+    else if (Left_Photo && Right_Photo) { // Since we reversed the colors, we know we are on the line if we detect white on both sides, thus turn off the LEDs
       return 0;
     }
-    // IF WE END UP OUT HERE, AN ERROR OCCURRED, AT THE MOMENT THE ONLY WAY THE CODE CAN REACH THIS POINT IS BY DETECTING THAT WE ARE OFF THE LINE ON BOTH SIDES
-    return -1; */
-    if (reverseColor) { // Light is the line, dark is everything else
-      if ((Left_Photo && !Right_Photo) || (!Left_Photo && Right_Photo)) { // If we detect dark, it must exclusively be detected on one side (This is the XOR of Left_Photo and Right_Photo)
-        if (!Left_Photo) { // Left Side is dark (like asphalt)
-          return 1;
-        }
-        else { // Right Side is dark (like asphalt)
-          return 2;
-        }
+  }
+  else { //Dark line, light outside
+    if ((Left_Photo && !Right_Photo) || (!Left_Photo && Right_Photo)) { // If we detect dark, it must exclusively be detected on one side
+      if (Left_Photo) { // Left Side is light (Like if we are using dark colored tape on a bright surface)
+        return 1;
       }
-      else if (Left_Photo && Right_Photo) { // Since we reversed the colors, we know we are on the line if we detect white on both sides, thus turn off the LEDs
-        return 0;
+      else { //Right Side is light (Like if we are using dark colored tape on a bright surface)
+        return 2;
       }
     }
-    else { //Dark line, light outside
-      if ((Left_Photo && !Right_Photo) || (!Left_Photo && Right_Photo)) { // If we detect dark, it must exclusively be detected on one side
-        if (Left_Photo) { // Left Side is light (Like if we are using dark colored tape on a bright surface)
-          return 1;
-        }
-        else { //Right Side is light (Like if we are using dark colored tape on a bright surface)
-          return 2;
-        }
-      }
-      else if (!Left_Photo && !Right_Photo) { // If both sensors detect dark then turn off the LEDs
-        return 0;
-      }
+    else if (!Left_Photo && !Right_Photo) { // If both sensors detect dark then turn off the LEDs
+      return 0;
+    }
   }
   return -1;
 }
 
 void trackLine(uint8_t LeftPhotoresistor, uint8_t RightPhotoresistor, bool reverseColor, photoVals *photoValues, bool towards_pickup, uint8_t motorSpeed) {
-  readRawPhotoCells(LeftPhotoresistor, RightPhotoresistor, photoValues);
-  //photoVals test1;
-  //test1 = *photoValues; 
+  /*
+   * This function will facilitate the reading and processing of our photo cell values. This function expects to read from 2 photo cells.
+   * 
+   * This function was written to work with Trash-E which is a vehicular robot, thus it accepts some other parameters to interact with other components of the robot.
+   */
+  readRawPhotoCells(LeftPhotoresistor, RightPhotoresistor, photoValues); 
   processPhotoCells(photoValues);
   // YOU CAN COMMENT THE CODE BELOW OUT IF YOU WANT, YOU JUST NEED TO CALL handlePhotoCells(photoValues, reverseColor) AGAIN
   // BELOW MAY BE USEFUL FOR UNDERSTANDING WHICH PHOTO CELLS TRIGGERED
