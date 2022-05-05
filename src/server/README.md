@@ -6,7 +6,7 @@ WE DO NOT CLAIM ANY OF THE CODE PROVIDED TO US THROUGH ESP-IDF.
 
 This is how Trash-E learns about the most recent schedule set by the user scheduling interface which is the Trash-E.py script.
 
-At the time of running, we made use a mobile hotspot and worked under the assumption that all involved devices were connected to the same local network (the hotspot). Thus we made use of local IPs to communicate with other devices in the network. This may be subject to change depending on one's setup.
+At the time of running, we made use a mobile hotspot and worked under the assumption that all involved devices were connected to the same local network (the hotspot). Thus we made use of local IPs to communicate with other devices in the network. This may be subject to change depending on one's setup. This is also true for the final rover code.
 
 The overall method of communication was like so: Some external computer running Trash-E.py -> runs Curl command to send a HTTP Post with the selected schedule to this server code being run by an ESP32 -> This server code will communicate with the Robot Trash-E when it requests for the schedule.
 
