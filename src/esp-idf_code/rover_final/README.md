@@ -1,11 +1,5 @@
-ESP-IDF template app
-====================
+## Trash-E ESP-IDF C Code
 
-This is a template application to be used with [Espressif IoT Development Framework](https://github.com/espressif/esp-idf).
+This is the final version of the ESP-IDF C code for Team 16's Trash-E after UMASS ECE Senior Design Project 2022.
 
-Please check [ESP-IDF docs](https://docs.espressif.com/projects/esp-idf/en/latest/get-started/index.html) for getting started instructions.
-
-*Code in this repository is in the Public Domain (or CC0 licensed, at your option.)
-Unless required by applicable law or agreed to in writing, this
-software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-CONDITIONS OF ANY KIND, either express or implied.*
+It consists of Motor control, line tracking, and some Wi-Fi enabled functionality for getting scheduling data from a local ESP32 Web Server.
