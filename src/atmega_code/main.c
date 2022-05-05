@@ -33,7 +33,7 @@
 uint8_t loadDetBool = 0;
 uint8_t timerBool = 0;
 uint16_t overflowCount = 0;
-uint8_t detThreshold = 10;
+uint8_t detThreshold = 25;
 uint16_t overflowThreshold = 4;
 
 ISR (TIMER0_OVF_vect) {
